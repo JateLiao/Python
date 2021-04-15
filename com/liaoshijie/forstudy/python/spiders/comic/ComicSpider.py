@@ -38,7 +38,7 @@ class ComicSpider(scrapy.Spider):
               + "\n保存路径：" + save_path)
         # start_urls = [comic_url]
         # for url in start_urls:
-        yield scrapy.Request(url=comic_url, callback=self.parse, dont_filter=True, errback=self.parse)
+        yield scrapy.Request(url=comic_url, callback=self.parse, dont_filter=True)
 
     def parse(self, response):
         print("解析函数被回调: " + response.url)
@@ -72,14 +72,29 @@ class ComicSpider(scrapy.Spider):
         target_url = "".join([comic_url, "/", str(target_index)])
         print("目标url：" + target_url)
         print("开始解析目标漫画url：" + target_url)
-        yield scrapy.Request(url=target_url, callback=parse_target_url, dont_filter=True, errback=self.parse)
+        yield scrapy.Request(url=target_url, callback=parse_target_url, dont_filter=True)
 
 
 def parse_target_url(response):
+    current_url = response.url
+    print("解析当前漫画：" + current_url)
     content = response.body
     soup = BeautifulSoup(content, "html5lib")
     all_index_url_div = soup.find_all(name="li", attrs={"class": "pure-u-1-2 pure-u-lg-1-4"})
     for index_div in all_index_url_div:
         index_title = index_div.find(name="a").attrs["title"]
-        index_href = index_div.find(name="a").attrs["href"].replace("/", "")
-        print("目之所及的话：{}---{}".format(index_href, index_title))
+        index_href = index_div.find(name="a").attrs["href"]  # .replace("/", "")
+        digital_ = "".join(list(filter(str.isdigit, index_href)))
+        if "" == digital_:
+            print("暂时不处理这种: {}---{}".format(index_href, index_title))
+            continue
+        index_no = int(digital_)
+        if index_start <= index_no <= index_end:
+            print("发现目标：{}---{},真实剧集：{}".format(index_href, index_title, index_no))
+            target_index_url = "".join([current_url, index_href.replace("/", "")])
+            print("开始解析目标剧集url：" + target_index_url)
+            yield scrapy.Request(url=target_index_url, callback=page_target_index_url, dont_filter=True)
+
+
+def page_target_index_url(response):
+    return
