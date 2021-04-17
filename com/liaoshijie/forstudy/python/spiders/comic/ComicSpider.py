@@ -2,32 +2,46 @@
 # -*- coding: UTF-8 -*-
 
 import logging
-
+import os
+import urllib
 import scrapy
 from bs4 import BeautifulSoup
 
 # 漫画url
 comic_url = "https://manhua.fzdm.com"
+pic_url_pattern = "http://www-mipengine-org.mipcdn.com/i/p3.manhuapan.com/{}"
 # 要爬的漫画名：死神、火影忍者、海贼王
 comic_name = "海贼王"
 # 漫画区间
-index_start = 655
-index_end = 1010
+index_start = 956
+index_end = 956
 # 漫画存放路径
-save_path = "/Users/liaoshijie/Books/Comics/OnePiece"
+save_path = "/Users/liaoshijie/Books/Comics/"
 
 logger = logging.getLogger("comic_spider_logger")
 logger.setLevel(logging.INFO)
+headers = {
+    ":authority": "manhua.fzdm.com",
+    ":path": "/2/1010/index_1.html",
+    ":scheme": "https",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    "accept-encoding": "gzip, deflate, br",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "cache-control": "max-age=0",
+    "cookie": "_ga=GA1.1.1583713336.1618148971; 4352_2568_125.67.188.136=1; 4243_2327_125.67.188.136=1; 4244_2325_125.67.188.136=1; 4243_2326_125.67.188.136=1; 4244_2525_125.67.188.136=1; 4244_2571_125.67.188.136=1; 4244_2570_125.67.188.136=1; 4244_2499_125.67.188.136=1; 4244_2402_125.67.188.136=1; 4240_2507_125.67.188.136=1; 4244_2444_125.67.188.136=1; 4244_2460_125.67.188.136=1; 4240_2463_125.67.188.136=1; beitouviews_4240=YpwbPEcaTRTWD3reFGt5JU3flgBDLhThlEM6w4dGCa5GfDgJEoVKT1mAlB%252BUfjEhUGCfTm7k%252BIxN1zuqMVcs%252FQu4CYqXpIhPPxTH8gnT%252BcyKbT6ZP9jCbKwFVLmM1esol85Y8YXVazlKgNTT1N7KvjZih8QWOz9hXsmh%252B0kDOo4SFVO4sO7LJD1eltBejz9ZsVJFjgg54jo5k7eRgGxP9K3PzRWLg6DEs9cTgD6VGYVIq7XCY%252FCFWkJ4hbJsJP7AeDh80kZr4nuexZziL3ZmmBXpqh%252B6Dc3tJD89rG7CaJ4nztNOmuLo%252FomGmjRcmTwNsqcD9jy2b2zb7%252BmABe3Onw%253D%253D; 4240_2470_125.67.188.136=1; picHost=http://www-mipengine-org.mipcdn.com/i/p3.manhuapan.com;fixedviewTop_4352=XK4RzfL66xxKNbpYmZw7vDfgookBjv98qpxdSPzpvRdRm0eDtviNB%252F84ZlBdyzo78RzSYGTeVqeIFux93P8iz1Ts4RgcTocW%252Fkn0a7GUJoQj%252Bn5OHa%252FV75VxFEunKLsFQYVd3C5yLxK0fGWad3JK56sVUtLkLMIUDdC2lUMfSBkFJXJKu8OwmKXX6FJ%252FBB8Opl7PggJ6w7KceSvsj6IsP7L3Jqricf7AM2Caku5YFnLtHzCX1Lf1eOGCtIIphgP4uiSsf2%252FC1Wyx499lBM8Qq8oLnjTlse6xH7PgzIG4I5Gy3kd4BPRCkyy7p%252B0eTfKdFMC94U2PubMC7ZsI1CrBGg%253D%253D; fixedview_4243=fpMrbJ2jKxc%252FeIt1wbLBxY2wg1AuzKebUstRtLgNahSc98riQK2rcTFTaN57yXQR4akAczcCkp%252FhRMSUap4NuK9G7fyHBm64V9LNtR3djYm42jeEJOhn2WZD75pBGQ4qOhXihmApK%252F3tSbZDVpoxnfySQsdtyI9j8JlX3LPyPmyKJ2BvpdzSRIX9zaV9ltMRLrUOeWfNOBE77ibCpH4QTUEYWBh0VV9%252BcbyH07w4s87D%252Bds%252BgZ1eM1seazB6as1a7L4%252BTsLzSdnkZt52JywGjXUBbfem2FWfs%252BxaL9jmOthMbjzpM3Z4GJL%252BfKP5bGoVlfMYFMU6JUMlDBNt5FVPJQ%253D%253D; richviews_4244=dJQb0gcRm0De9PbjE4SsAB%252FCrbOAJawEYSJu7UlkTarPEsUccnuIu35R%252Btwy8ioD24r%252FJP79rPgvL3Cime%252BWmgOC2CaexA8OxCcUuDzF85ONQl6dIuKf3mCuRmL2k5Em2sGxqNM%252BYOnKZuP5Ryv7qxt%252B%252BJqdx81EOPg0tZUT33dFR49k7x%252FAcrumH8vzov0ldW61LnYBP3OgA2zvhRHijHthsOYW4RPAEc%252Bat7iWWarKmDNgq%252F0U8Io1FXmIpgYJap3pQGYG07d%252Fg8feJYoq7qPXyU92Hl0wYEpPt7cDSLl3M%252FxCUNUrP8%252F%252F6jp61juSFCj9%252FMViLks5Hc8wRG7gAXMCumUgBsaGz5LvgTkb7DPdHbtbj8s6fPIoXh0j62xJ%252BZb9KAsWvD4t%252FkDLdnlxYMlJ4R08V6TyP4xOqPBfsuO0ZqbLiEsfLZSy8K4upTTZhDdCpoUCTZ23erMyL8CcSTuYkPOlHFMSQliu8Pdx7yb2J8WKqgcC9appcXVrCcIHPod%252BWBtv1Jl%252FYOfy0lUI1EzNw%252BUYZ15N9xHBvm6Gu4LfZDItLcQBJSy5hvKpkMUMjiyq9lOx8qcRb90cwu6CIW8oEYxLCqzZCKVSgRBaHocKvMVj9t1pXCUSHyhcQ6UnZi7ROrJUF0xECoWWu0zXLaYkiZTsL8X0x6%252BFcPYpy6U%253D; _ga_1FZE0C2L80=GS1.1.1618669087.11.1.1618671365.0",
+    "sec-ch-ua": "\"Google Chrome\";v=\"89\", \"Chromium\";v=\"89\", \";Not A Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "same-origin",
+    "sec-fetch-site": "same-origin",
+    "upgrade-insecure-requests": "1",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36"
+}
 
 
 class ComicSpider(scrapy.Spider):
     name = "my_spider"
     allowed_domains = ["manhua.fzdm.com"]
-
-    # custom_settings = {
-    #     'LOG_LEVEL': 'INFO',
-    #     'LOG_FILE': '/Users/liaoshijie/Workspace/python/ForStudy-Python/log/log.log'
-    # }
 
     def start_requests(self):
         # logger.warning("开始爬取漫画...")
@@ -36,8 +50,6 @@ class ComicSpider(scrapy.Spider):
               + "\n漫画名：" + comic_name
               + "\n漫画区间：" + str(index_start) + " -> " + str(index_end)
               + "\n保存路径：" + save_path)
-        # start_urls = [comic_url]
-        # for url in start_urls:
         yield scrapy.Request(url=comic_url, callback=self.parse, dont_filter=True)
 
     def parse(self, response):
@@ -93,8 +105,44 @@ def parse_target_url(response):
             print("发现目标：{}---{},真实剧集：{}".format(index_href, index_title, index_no))
             target_index_url = "".join([current_url, index_href.replace("/", "")])
             print("开始解析目标剧集url：" + target_index_url)
-            yield scrapy.Request(url=target_index_url, callback=page_target_index_url, dont_filter=True)
+            yield scrapy.Request(url=target_index_url, callback=parse_page_target_index_url, dont_filter=True)
 
 
-def page_target_index_url(response):
+def parse_page_target_index_url(response):
+    # 获取当前集，并创建文件夹
+    main_url = response.url
+    soup = BeautifulSoup(response.body, "html5lib")
+    index_name = soup.find(name="div", attrs={"id": "pjax-container"}).find(name="h1").text
+    index_name = str.strip(index_name)
+    # 创建文件夹
+    parent_path = save_path + comic_name + "/" + index_name
+    if not os.path.exists(parent_path):
+        print("漫画路径创建：" + parent_path)
+        os.makedirs(parent_path)
+    ## 实际是从https://xxxxx.com/2/456/index_0.html开始解析
+    for index_no in range(50):
+        index_no_url = main_url + "index_{}.html".format(str(index_no))
+        print("开始解析图片url：" + index_no_url)
+        yield scrapy.Request(url=index_no_url, callback=parse_index_no_url, headers=headers,
+                             cb_kwargs={"parent_path": parent_path,
+                                        "index_no": index_no})
+
+
+def parse_index_no_url(response, parent_path, index_no):
+    if response.status != 200:
+        print("爬完了...{}\n".format(str(index_no)))
+        return
+    print(parent_path + "/" + str(index_no))
+    soup = BeautifulSoup(response.body, "html5lib")
+    script_list_tag = soup.find_all(name="script", attrs={"type": "text/javascript"})
+    for script_tag in script_list_tag:
+        script_text = script_tag.text
+        if "var mhurl1" in script_text:
+            pic_location = script_text.split(";")[0].replace("var mhurl1=", "").replace("\"", "", 2)
+            pic_url = pic_url_pattern.format(pic_location)
+            print("找到图片：{}".format(pic_url))
+            # 下载保存图片到本地
+            file_name = parent_path + "/" + str(index_no) + ".jpg"
+            urllib.request.urlretrieve(pic_url, filename=file_name)
+            break
     return
