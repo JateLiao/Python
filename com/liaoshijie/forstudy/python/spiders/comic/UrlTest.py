@@ -1,5 +1,6 @@
 import scrapy
 import urllib
+import requests
 
 # from com.liaoshijie.forstudy.python.spiders.comic.ComicSpider import ComicSpider
 #
@@ -31,5 +32,8 @@ print(req.body)
 url_req = urllib.request.Request(url)
 response = urllib.request.urlopen(url_req)
 data = response.read().decode('utf-8')
+# print(data)
 
-print(data)
+print("---------")
+html = requests.head("https://manhua.fzdm.com/2/956/index_27.html")
+print(html.status_code)

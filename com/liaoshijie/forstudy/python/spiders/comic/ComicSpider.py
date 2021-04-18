@@ -3,7 +3,10 @@
 
 import logging
 import os
+import re
 import urllib
+
+import requests
 import scrapy
 from bs4 import BeautifulSoup
 
@@ -13,8 +16,8 @@ pic_url_pattern = "http://www-mipengine-org.mipcdn.com/i/p3.manhuapan.com/{}"
 # 要爬的漫画名：死神、火影忍者、海贼王
 comic_name = "海贼王"
 # 漫画区间
-index_start = 956
-index_end = 956
+index_start = 900
+index_end = 1010
 # 漫画存放路径
 save_path = "/Users/liaoshijie/Books/Comics/"
 
@@ -122,6 +125,10 @@ def parse_page_target_index_url(response):
     ## 实际是从https://xxxxx.com/2/456/index_0.html开始解析
     for index_no in range(50):
         index_no_url = main_url + "index_{}.html".format(str(index_no))
+        # 判断是否404
+        if not is_valid_url(index_no_url):
+            print("到此为止了：{}".format(index_no_url))
+            break
         print("开始解析图片url：" + index_no_url)
         yield scrapy.Request(url=index_no_url, callback=parse_index_no_url, headers=headers,
                              cb_kwargs={"parent_path": parent_path,
@@ -137,12 +144,18 @@ def parse_index_no_url(response, parent_path, index_no):
     script_list_tag = soup.find_all(name="script", attrs={"type": "text/javascript"})
     for script_tag in script_list_tag:
         script_text = script_tag.text
-        if "var mhurl1" in script_text:
-            pic_location = script_text.split(";")[0].replace("var mhurl1=", "").replace("\"", "", 2)
-            pic_url = pic_url_pattern.format(pic_location)
-            print("找到图片：{}".format(pic_url))
-            # 下载保存图片到本地
-            file_name = parent_path + "/" + str(index_no) + ".jpg"
-            urllib.request.urlretrieve(pic_url, filename=file_name)
+        if "var mhurl" in script_text and "var mhurl1" not in script_text:
+            match = re.search("mhurl.+jpg", script_text)
+            if match:
+                pic_url = pic_url_pattern.format(match.group().replace("mhurl=\"", ""))
+                print("找到图片：{}".format(pic_url))
+                # 下载保存图片到本地
+                file_name = parent_path + "/" + str(index_no) + ".jpg"
+                urllib.request.urlretrieve(pic_url, filename=file_name)
             break
     return
+
+
+def is_valid_url(url):
+    re_status = requests.head(url).status_code
+    return re_status == 200
