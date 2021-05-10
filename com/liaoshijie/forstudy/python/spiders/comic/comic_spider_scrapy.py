@@ -16,8 +16,8 @@ pic_url_pattern = "http://www-mipengine-org.mipcdn.com/i/p3.manhuapan.com/{}"
 # 要爬的漫画名：死神、火影忍者、海贼王
 comic_name = "海贼王"
 # 漫画区间
-index_start = 900
-index_end = 1010
+index_start = 1011
+index_end = 1012
 # 漫画存放路径
 save_path = "/Users/liaoshijie/Books/Comics/"
 
@@ -147,7 +147,8 @@ def parse_index_no_url(response, parent_path, index_no):
         if "var mhurl" in script_text and "var mhurl1" not in script_text:
             match = re.search("mhurl.+jpg", script_text)
             if match:
-                pic_url = pic_url_pattern.format(match.group().replace("mhurl=\"", ""))
+                pic_url = pic_url_pattern.format(match.group().replace("mhurl=\"", "")) \
+                    .replace("mhurl = \"", "")
                 print("找到图片：{}".format(pic_url))
                 # 下载保存图片到本地
                 file_name = parent_path + "/" + str(index_no) + ".jpg"
